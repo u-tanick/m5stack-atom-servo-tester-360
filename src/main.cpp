@@ -89,7 +89,16 @@ unsigned long interval360 = 0;
 
 int servo360_speed = 0; // 360サーボの速度用変数
 
-#define SERVO_360_PIN 26  // Atom LiteのGroveポート 26 または 32
+#define NOT_USE_ATOM_BATTERY_BASE
+//#define USE_ATOM_BATTERY_BASE
+
+// M5ATOM用補助電池基板の使用／未使用ごとの接続PIN
+#ifdef NOT_USE_ATOM_BATTERY_BASE
+  const int SERVO_360_PIN = 26;  // Atom LiteのGroveポート 26
+#endif
+#ifdef USE_ATOM_BATTERY_BASE
+  const int SERVO_360_PIN = 22;  // M5ATOM用補助電池基板のGroveポート 22
+#endif
 
 // ================================== End
 
@@ -185,15 +194,18 @@ void loop() {
 
   // === ボタンAが押されたらテスト動作モードの開始/停止を切り替え ===
   if (M5.BtnA.wasPressed()) {
-    setLed(CRGB::White);
-    delay(2000);
-    setLed(CRGB::Black);
-      if (!isRandomRunning) {
+    if (!isRandomRunning) {
+      setLed(CRGB::White);
+      delay(1000);
+      setLed(CRGB::Black);
       startRandomMode();
     } else {
       isRandomRunning = false;
       servo360.startEaseTo(START_DEGREE_VALUE_SERVO_360);  // 360°サーボを停止
-    }
+      setLed(CRGB::Red);
+      delay(1000);
+      setLed(CRGB::Black);
+      }
   }
 
   if (!isRandomRunning) return;  // 停止中なら何もしない
