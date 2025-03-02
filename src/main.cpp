@@ -56,9 +56,9 @@ void setLed(CRGB color)
 
 ServoEasing servo360;  // 360度サーボ
 
-// #define USE_Servo_TowerPro
+#define USE_Servo_TowerPro
 // #define USE_Servo_Feetech360
-#define USE_Servo_M5Stack
+// #define USE_Servo_M5Stack
 
 // サーボの種類毎のPWM幅や初期角度、回転速度のレンジ設定など
 #ifdef USE_Servo_TowerPro
@@ -132,7 +132,6 @@ void servoRandomRunningMode(unsigned long currentMillis) {
     int rand_speed_offset_360 = random(SERVO_DEG_RANGE_MIN, SERVO_DEG_RANGE_MAX)* 2;
     servo360.startEaseTo(START_DEGREE_VALUE_SERVO_360 + rand_speed_offset_360);
   }
-
 }
 
 // ★テストモード
