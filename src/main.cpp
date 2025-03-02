@@ -57,28 +57,30 @@ void setLed(CRGB color)
 ServoEasing servo360;  // 360度サーボ
 
 // #define USE_Servo_TowerPro
-#define USE_Servo_Feetech360
-// #define USE_Servo_M5Stack
+// #define USE_Servo_Feetech360
+#define USE_Servo_M5Stack
 
 // サーボの種類毎のPWM幅や初期角度、回転速度のレンジ設定など
 #ifdef USE_Servo_TowerPro
   const int MIN_PWM = 500;
   const int MAX_PWM = 2400;
-  const int START_DEGREE_VALUE_SERVO_360 = 95;  // 360度サーボ（X軸方向）の初期角度(=360度サーボの停止位置：試作に使用したsg90-hvの場合90だと停止しなかったのでこの値に設定)
+  // const int START_DEGREE_VALUE_SERVO_360 = 90;     // 360度サーボの停止位置：仕様では90で停止
+  const int START_DEGREE_VALUE_SERVO_360 = 95;        // サーボ個体差で、90度指定で停止しなかった場合値を変えてみる（試作に使用したsg90-hvの場合95付近で停止だった)
   const int SERVO_DEG_RANGE_MAX = 12;
   const int SERVO_DEG_RANGE_MIN = -1 * SERVO_DEG_RANGE_MAX;
 #endif
 #ifdef USE_Servo_Feetech360
   const int MIN_PWM = 700;
   const int MAX_PWM = 2300;
-  const int START_DEGREE_VALUE_SERVO_360 = 90;  // 360度サーボ（X軸方向）の初期角度(=360度サーボの停止位置：FeetechのFS90Rは素直に90度で停止)
+  // const int START_DEGREE_VALUE_SERVO_360 = 90;     // 360度サーボの停止位置：仕様では90で停止
+  const int START_DEGREE_VALUE_SERVO_360 = 93;        // サーボ個体差で、90度指定で停止しなかった場合値を変えてみる（試作に使用したsg90-hvの場合95付近で停止だった)
   const int SERVO_DEG_RANGE_MAX = 6;
   const int SERVO_DEG_RANGE_MIN = -1 * SERVO_DEG_RANGE_MAX;
 #endif
 #ifdef USE_Servo_M5Stack
   const int MIN_PWM = 500;
   const int MAX_PWM = 2500;
-  const int START_DEGREE_VALUE_SERVO_360 = 95;  // 360度サーボ（X軸方向）の初期角度(=360度サーボの停止位置：試作に使用したsg90-hvの場合90だと停止しなかったのでこの値に設定)
+  const int START_DEGREE_VALUE_SERVO_360 = 90;         // 360度サーボの停止位置：仕様では90で停止（M5Stack公式は停止のレンジが85～95あたりと広めにとられている様子。手元では個体差なし）
   const int SERVO_DEG_RANGE_MAX = 12;
   const int SERVO_DEG_RANGE_MIN = -1 * SERVO_DEG_RANGE_MAX;
 #endif
@@ -89,8 +91,8 @@ unsigned long interval360 = 0;
 
 int servo360_speed = 0; // 360サーボの速度用変数
 
-#define NOT_USE_ATOM_BATTERY_BASE
-//#define USE_ATOM_BATTERY_BASE
+#define NOT_USE_ATOM_BATTERY_BASE    // Atom LiteのGroveポートから直接動作させる場合
+// #define USE_ATOM_BATTERY_BASE     // M5ATOM用補助電池基板を使う場合
 
 // M5ATOM用補助電池基板の使用／未使用ごとの接続PIN
 #ifdef NOT_USE_ATOM_BATTERY_BASE
@@ -131,6 +133,21 @@ void servoRandomRunningMode(unsigned long currentMillis) {
     servo360.startEaseTo(START_DEGREE_VALUE_SERVO_360 + rand_speed_offset_360);
   }
 
+}
+
+// ★テストモード
+int count_360 = 0;
+void servoTestRunningMode(unsigned long currentMillis) {
+
+  // === 360°サーボの動作 (5秒間隔) ===
+  if (currentMillis - prevTime360 >= interval360) {
+    prevTime360 = currentMillis;
+    interval360 = 5000; // 5秒間隔固定
+
+    // 60 ～ 120 度が示す速度（初期位置は90）
+    servo360.startEaseTo(START_DEGREE_VALUE_SERVO_360 + (count_360 % 7) * 10 - 30);
+    count_360 = (count_360 + 1) % 99;
+  }
 }
 // ================================== End
 
@@ -178,7 +195,7 @@ void setup() {
   FastLED.addLeds<WS2811, LED_PIN, RGB>(leds, NUM_LEDS);
   FastLED.setBrightness(255 * 15 / 100);
 
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < 3; i++)
   {
     setLed(CRGB::Blue);
     delay(500);
@@ -211,6 +228,9 @@ void loop() {
   if (!isRandomRunning) return;  // 停止中なら何もしない
 
   unsigned long currentMillis = millis();
+  // ランダム動作モード（デフォルト）
   if (isRandomRunning) servoRandomRunningMode(currentMillis);
+  // テストモード（段階的に回転速度を変えるデモ）を動かしたい場合はこちらを使用
+  // if (isRandomRunning) servoTestRunningMode(currentMillis);
 
 }
