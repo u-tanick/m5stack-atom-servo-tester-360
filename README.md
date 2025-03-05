@@ -12,7 +12,6 @@ M5StackのAtomシリーズから360度サーボモーターを1台稼働させ�
 
 - mongonta0716/stackchan-arduino
 - fastled/FastLED@^3.7.5
-- h2zero/NimBLE-Arduino@^1.4.2
 
 - その他
   - サーボモーターの制御は `ServoEasing` を使用しています。
@@ -22,16 +21,22 @@ M5StackのAtomシリーズから360度サーボモーターを1台稼働させ�
 - 360度回転サーボモーター
   - [TowerPro SG90-HV](https://akizukidenshi.com/catalog/g/g114382/)
   - [FEETECH FS90R](https://akizukidenshi.com/catalog/g/g113206/)
+  - [M5Stack Servo Kit 360](https://www.switch-science.com/products/6479)
 
 使用するサーボモーター毎にパラメータを調整が必要ですが、`main.cpp の59行目付近` のコメント／コメントアウトで、切り替えることができます。
 
 ``` cpp
-// #define USE_Servo_TowerPro
-#define USE_Servo_Feetech360
+#define USE_Servo_TowerPro
+// #define USE_Servo_Feetech360
 // #define USE_Servo_M5Stack
 ```
 
-サーボモーターは、[HY4pServo](https://www.switch-science.com/products/6922) を使用してGroveケーブル経由でAtom製品に接続している想定です。
+サーボモーターは、Groveケーブルまたは背面に接続する想定です。それぞれの場合のGPIOピンの番号は以下になります。
+
+- 背面
+  - 25
+- Groveケーブル（デフォルト）
+  - 26
 
 ## 想定M5Stack製品
 

@@ -1,34 +1,27 @@
 // ==================================
 // 全体共通のヘッダファイルのinclude
 #include <Arduino.h>                         // Arduinoフレームワークを使用する場合は必ず必要
-#include <SD.h>                              // SDカードを使うためのライブラリです。
 #include <Update.h>                          // 定義しないとエラーが出るため追加。
 #include <Ticker.h>                          // 定義しないとエラーが出るため追加。
 #include <M5Unified.h>                       // M5Unifiedライブラリ
 // ================================== End
 
 // ==================================
-// for SystemConfig
-#include <Stackchan_system_config.h>          // stack-chanの初期設定ファイルを扱うライブラリ
-StackchanSystemConfig system_config;          // (Stackchan_system_config.h) プログラム内で使用するパラメータをYAMLから読み込むクラスを定義
+// #defines
+// 各要素の使用／不使用を切り替え
+
+#define USE_Servo                    // サーボモーターを使用する場合（背面のGPIOから360度サーボモーターを動かす想定）
+
+#define USE_Servo_360_TowerPro       // 使用するサーボモーターのメーカーごとのパラメータ設定。3種から選択。
+// #define USE_Servo_360_Feetech360
+// #define USE_Servo_360_M5Stack
+
 // ================================== End
 
 // ==================================
-// for LED
-#include <FastLED.h>
-#define LED_PIN 27
-#define NUM_LEDS 1
-static CRGB leds[NUM_LEDS];
-
-void setLed(CRGB color)
-{
-  // change RGB to GRB
-  uint8_t t = color.r;
-  color.r = color.g;
-  color.g = t;
-  leds[0] = color;
-  FastLED.show();
-}
+// for SystemConfig
+#include <Stackchan_system_config.h>          // stack-chanの初期設定ファイルを扱うライブラリ
+StackchanSystemConfig system_config;          // (Stackchan_system_config.h) プログラム内で使用するパラメータをYAMLから読み込むクラスを定義
 // ================================== End
 
 // ==================================
@@ -56,20 +49,16 @@ void setLed(CRGB color)
 
 ServoEasing servo360;  // 360度サーボ
 
-#define USE_Servo_TowerPro
-// #define USE_Servo_Feetech360
-// #define USE_Servo_M5Stack
-
 // サーボの種類毎のPWM幅や初期角度、回転速度のレンジ設定など
-#ifdef USE_Servo_TowerPro
-  const int MIN_PWM = 500;
-  const int MAX_PWM = 2400;
+#ifdef USE_Servo_360_TowerPro
+  const int MIN_PWM_360 = 500;
+  const int MAX_PWM_360 = 2400;
   // const int START_DEGREE_VALUE_SERVO_360 = 90;     // 360度サーボの停止位置：仕様では90で停止
   const int START_DEGREE_VALUE_SERVO_360 = 95;        // サーボ個体差で、90度指定で停止しなかった場合値を変えてみる（試作に使用したsg90-hvの場合95付近で停止だった)
   const int SERVO_DEG_RANGE_MAX = 12;
   const int SERVO_DEG_RANGE_MIN = -1 * SERVO_DEG_RANGE_MAX;
 #endif
-#ifdef USE_Servo_Feetech360
+#ifdef USE_Servo_360_Feetech360
   const int MIN_PWM = 700;
   const int MAX_PWM = 2300;
   // const int START_DEGREE_VALUE_SERVO_360 = 90;     // 360度サーボの停止位置：仕様では90で停止
@@ -77,7 +66,7 @@ ServoEasing servo360;  // 360度サーボ
   const int SERVO_DEG_RANGE_MAX = 6;
   const int SERVO_DEG_RANGE_MIN = -1 * SERVO_DEG_RANGE_MAX;
 #endif
-#ifdef USE_Servo_M5Stack
+#ifdef USE_Servo_360_M5Stack
   const int MIN_PWM = 500;
   const int MAX_PWM = 2500;
   const int START_DEGREE_VALUE_SERVO_360 = 90;         // 360度サーボの停止位置：仕様では90で停止（M5Stack公式は停止のレンジが85～95あたりと広めにとられている様子。手元では個体差なし）
@@ -91,16 +80,8 @@ unsigned long interval360 = 0;
 
 int servo360_speed = 0; // 360サーボの速度用変数
 
-#define NOT_USE_ATOM_BATTERY_BASE    // Atom LiteのGroveポートから直接動作させる場合
-// #define USE_ATOM_BATTERY_BASE     // M5ATOM用補助電池基板を使う場合
-
-// M5ATOM用補助電池基板の使用／未使用ごとの接続PIN
-#ifdef NOT_USE_ATOM_BATTERY_BASE
-  const int SERVO_360_PIN = 26;  // Atom LiteのGroveポート 26
-#endif
-#ifdef USE_ATOM_BATTERY_BASE
-  const int SERVO_360_PIN = 22;  // M5ATOM用補助電池基板のGroveポート 22
-#endif
+// const int SERVO_360_PIN = 25;  // Atom Liteの背面のGPIO  25
+const int SERVO_360_PIN = 26;  // Atom LiteのGroveポート 26
 
 // ================================== End
 
@@ -164,22 +145,22 @@ void setup() {
   M5.Log.setLogLevel(m5::log_target_serial, ESP_LOG_INFO);     // M5Unifiedのログ初期化（シリアルモニターにESP_LOG_INFOのレベルのみ表示する)
   M5.Log.setEnableColor(m5::log_target_serial, false);         // M5Unifiedのログ初期化（ログをカラー化しない。）
   M5_LOGI("Hello World");                                      // logにHello Worldと表示
-  SD.begin(GPIO_NUM_4, SPI, 25000000);                         // SDカードの初期化
-  delay(2000);                                                 // SDカードの初期化を少し待ちます。
 
+  // ---------------------------------------------------------------
   // servoの初期化
+  // ---------------------------------------------------------------
+#ifdef USE_Servo
   M5_LOGI("attach servo");
+  ESP32PWM::allocateTimer(0);                                  // ESP32Servoはタイマーを割り当てる必要がある
 
-  ESP32PWM::allocateTimer(0); // ESP32Servoはタイマーを割り当てる必要がある
-
-  servo360.setPeriodHertz(50);  // サーボ用のPWMを50Hzに設定
-  servo360.attach(SERVO_360_PIN, MIN_PWM, MAX_PWM);
-  servo360.setEasingType(EASE_LINEAR);       // 一定の速度で動かす場合は EASE_LINEAR に変更
+  servo360.setPeriodHertz(50);                                 // サーボ用のPWMを50Hzに設定
+  servo360.attach(SERVO_360_PIN, MIN_PWM_360, MAX_PWM_360);
+  servo360.setEasingType(EASE_LINEAR);                         // 一定の速度で動かす場合は EASE_LINEAR に変更
   setSpeedForAllServos(60);
-  servo360.startEaseTo(START_DEGREE_VALUE_SERVO_360);  // 360°サーボを停止位置にセット
+  servo360.startEaseTo(START_DEGREE_VALUE_SERVO_360);          // 360°サーボを停止位置にセット
 
-  M5.Power.setExtOutput(!system_config.getUseTakaoBase());       // 設定ファイルのTakaoBaseがtrueの場合は、Groveポートの5V出力をONにする。
-  M5_LOGI("ServoType: %d\n", system_config.getServoType());      // サーボのタイプをログに出力
+  M5.Power.setExtOutput(!system_config.getUseTakaoBase());     // 設定ファイルのTakaoBaseがtrueの場合は、Groveポートの5V出力をONにする。
+  M5_LOGI("ServoType: %d\n", system_config.getServoType());    // サーボのタイプをログに出力
 
   // ランダム動作用の変数初期化、個体差を出すためMACアドレスを使用する
   uint8_t mac[6];
@@ -187,20 +168,8 @@ void setup() {
   uint32_t seed = mac[0] | (mac[1] << 8) | (mac[2] << 16) | (mac[3] << 24);
   randomSeed(seed);
   interval360 = random(7000, 30001); // 7秒〜30秒のランダム間隔
+#endif
 
-  // ---------------------------------------------------------------
-  // RGB LEDの初期化（状態を把握するために利用）
-  // ---------------------------------------------------------------
-  FastLED.addLeds<WS2811, LED_PIN, RGB>(leds, NUM_LEDS);
-  FastLED.setBrightness(255 * 15 / 100);
-
-  for (int i = 0; i < 3; i++)
-  {
-    setLed(CRGB::Blue);
-    delay(500);
-    setLed(CRGB::Black);
-    delay(500);
-  }
 }
 
 // ----------------------------------------------
@@ -211,25 +180,24 @@ void loop() {
   // === ボタンAが押されたらテスト動作モードの開始/停止を切り替え ===
   if (M5.BtnA.wasPressed()) {
     if (!isRandomRunning) {
-      setLed(CRGB::White);
-      delay(1000);
-      setLed(CRGB::Black);
+#ifdef USE_Servo
       startRandomMode();
+#endif
     } else {
-      isRandomRunning = false;
+#ifdef USE_Servo
       servo360.startEaseTo(START_DEGREE_VALUE_SERVO_360);  // 360°サーボを停止
-      setLed(CRGB::Red);
-      delay(1000);
-      setLed(CRGB::Black);
+      isRandomRunning = false;
+#endif
       }
-  }
+}
 
+#ifdef USE_Servo
   if (!isRandomRunning) return;  // 停止中なら何もしない
-
   unsigned long currentMillis = millis();
   // ランダム動作モード（デフォルト）
   if (isRandomRunning) servoRandomRunningMode(currentMillis);
-  // テストモード（段階的に回転速度を変えるデモ）を動かしたい場合はこちらを使用
+  // ★テストモード（段階的に回転速度を変えるデモ）を動かしたい場合はこちらを使用
   // if (isRandomRunning) servoTestRunningMode(currentMillis);
+#endif
 
 }
